@@ -1,6 +1,6 @@
 import { LogOut, Trophy } from 'lucide-react'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { MB_ROSTER, MB_ROSTER_COUNT, MB_ROSTER_ID } from '../data/mbRoster'
 import { getAuthErrorMessage } from '../utils/authErrors'
@@ -9,12 +9,14 @@ import { validateRosterDataset } from '../utils/validateRoster'
 const rosterValidation = validateRosterDataset(MB_ROSTER)
 const uniqueRosterIds = new Set(MB_ROSTER.map(({ id }) => id)).size
 const uniqueRosterTypes = new Set(MB_ROSTER.flatMap(({ types }) => types)).size
+const validRosterIds = new Set(MB_ROSTER.map(({ id }) => id))
 
 if (import.meta.env.DEV && !rosterValidation.valid) {
   console.error('Regulation M-B roster validation failed.', rosterValidation.errors)
 }
 
 export default function AppHomePage() {
+  const navigate = useNavigate()
   const {
     user,
     logout,
@@ -25,6 +27,9 @@ export default function AppHomePage() {
   } = useAuth()
   const [loggingOut, setLoggingOut] = useState(false)
   const [error, setError] = useState('')
+  const validOwnedCount = Array.isArray(userProfile?.ownedPokemonIds)
+    ? new Set(userProfile.ownedPokemonIds.filter((id) => validRosterIds.has(id))).size
+    : 0
 
   async function handleLogout() {
     if (loggingOut) return
@@ -96,6 +101,16 @@ export default function AppHomePage() {
                 className="mt-5 inline-flex rounded-lg bg-brand-yellow px-4 py-2.5 font-semibold text-navy-950 outline-none hover:bg-yellow-300 focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2">
                 {userProfile.rosterLocked ? 'View My Roster' : 'Set Up My Roster'}
               </Link>
+              {userProfile.rosterLocked && validOwnedCount >= 6 ? (
+                <button type="button" onClick={() => navigate('/spinner')}
+                  className="ml-3 mt-5 inline-flex rounded-lg bg-brand-blue px-4 py-2.5 font-semibold text-white outline-none hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-2">
+                  Open Team Spinner
+                </button>
+              ) : (
+                <p className="mt-4 text-sm font-medium text-amber-800">
+                  Set up and lock at least 6 Pokémon to use the team spinner.
+                </p>
+              )}
               <section className="mt-6 rounded-xl border border-slate-200 bg-slate-100 p-4" aria-labelledby="dataset-heading">
                 <h2 id="dataset-heading" className="font-bold text-slate-950">Dataset verification</h2>
                 <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">

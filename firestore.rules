@@ -19,7 +19,14 @@ service cloud.firestore {
                     && request.resource.data.regulationId == "M-B"
                     && request.resource.data.rosterLocked is bool
                     && request.resource.data.ownedPokemonIds is list
-                    && request.resource.data.spinState is map;
+                    && request.resource.data.spinState is map
+                    && request.resource.data.spinState.unusedPokemonIds is list
+                    && request.resource.data.spinState.usedPokemonIds is list
+                    && request.resource.data.spinState.currentTeamIds is list
+                    && request.resource.data.spinState.cycleNumber is int
+                    && request.resource.data.spinState.cycleNumber >= 1
+                    && request.resource.data.spinState.totalSpins is int
+                    && request.resource.data.spinState.totalSpins >= 0;
 
       allow delete: if false;
     }
