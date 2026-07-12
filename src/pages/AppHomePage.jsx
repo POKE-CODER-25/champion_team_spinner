@@ -4,7 +4,14 @@ import { useAuth } from '../context/useAuth'
 import { getAuthErrorMessage } from '../utils/authErrors'
 
 export default function AppHomePage() {
-  const { user, logout } = useAuth()
+  const {
+    user,
+    logout,
+    userProfile,
+    profileLoading,
+    profileError,
+    refreshUserProfile,
+  } = useAuth()
   const [loggingOut, setLoggingOut] = useState(false)
   const [error, setError] = useState('')
 
@@ -42,10 +49,51 @@ export default function AppHomePage() {
         {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-red-800" role="alert">{error}</p>}
         <section className="rounded-2xl bg-slate-50 p-6 shadow-lg sm:p-8">
           <p className="text-sm font-semibold uppercase tracking-wide text-brand-blue">Welcome</p>
-          <h1 className="mt-2 text-2xl font-bold text-slate-950">Your team workspace is ready.</h1>
-          <p className="mt-3 max-w-2xl leading-7 text-slate-600">Authentication is working. Your M-B roster setup will be added next.</p>
+          {profileError ? (
+            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
+              <h1 className="text-xl font-bold text-red-900">We could not load your saved team data.</h1>
+              <p className="mt-2 text-sm leading-6 text-red-800">
+                Check your connection and Firestore setup, then try again.
+              </p>
+              <button type="button" onClick={() => refreshUserProfile()} disabled={profileLoading}
+                className="mt-4 rounded-lg bg-brand-yellow px-4 py-2 font-semibold text-navy-950 outline-none hover:bg-yellow-300 focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 disabled:opacity-60">
+                {profileLoading ? 'Retrying…' : 'Retry'}
+              </button>
+            </div>
+          ) : profileLoading || !userProfile ? (
+            <div className="mt-3" role="status">
+              <h1 className="text-2xl font-bold text-slate-950">Preparing your team workspace...</h1>
+              <p className="mt-3 text-slate-600">Authentication is working while your saved data is checked.</p>
+            </div>
+          ) : (
+            <>
+              <h1 className="mt-2 text-2xl font-bold text-slate-950">Your account database is ready.</h1>
+              <dl className="mt-6 grid gap-3 sm:grid-cols-2">
+                <StatusItem label="Authentication status" value="Signed in" />
+                <StatusItem label="Signed-in email" value={user?.email ?? ''} />
+                <StatusItem label="Firestore profile status" value="Ready" />
+                <StatusItem label="Regulation" value={userProfile.regulationId} />
+                <StatusItem label="Roster status" value={userProfile.rosterLocked ? 'Locked' : 'Not configured'} />
+                <StatusItem label="Owned Pokémon" value={userProfile.ownedPokemonIds?.length ?? 0} />
+                <StatusItem label="Cycle" value={userProfile.spinState?.cycleNumber ?? 1} />
+                <StatusItem label="Total spins" value={userProfile.spinState?.totalSpins ?? 0} />
+              </dl>
+              <p className="mt-6 max-w-2xl leading-7 text-slate-600">
+                Authentication is working. Your M-B roster setup will be added next.
+              </p>
+            </>
+          )}
         </section>
       </main>
+    </div>
+  )
+}
+
+function StatusItem({ label, value }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <dt className="text-sm font-medium text-slate-500">{label}</dt>
+      <dd className="mt-1 break-words font-semibold text-slate-900">{value}</dd>
     </div>
   )
 }
