@@ -1,7 +1,8 @@
 import { Check } from 'lucide-react'
+import { memo } from 'react'
 import { POKEMON_IMAGE_FALLBACK } from '../utils/pokemonImage'
 
-export default function PokemonCard({ pokemon, selected, editable, disabled, onToggle }) {
+function PokemonCard({ pokemon, selected, editable, disabled, onToggle }) {
   const handleImageError = (event) => {
     event.currentTarget.onerror = null
     event.currentTarget.src = POKEMON_IMAGE_FALLBACK
@@ -38,3 +39,5 @@ export default function PokemonCard({ pokemon, selected, editable, disabled, onT
     </button>
   )
 }
+
+export default memo(PokemonCard)

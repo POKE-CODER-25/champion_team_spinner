@@ -1,5 +1,5 @@
 import { ArrowLeft, LogOut, Trophy } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ConfirmDialog from '../components/ConfirmDialog'
 import PokemonCard from '../components/PokemonCard'
@@ -69,7 +69,7 @@ export default function RosterPage() {
   const ownedCount = lockedMode ? savedIds.length : selectedIds.size
   const canSave = selectedIds.size >= 6 && !saving
 
-  function togglePokemon(id) {
+  const togglePokemon = useCallback((id) => {
     if (lockedMode || saving) return
     setMessage('')
     setSaveError('')
@@ -79,7 +79,7 @@ export default function RosterPage() {
       else next.add(id)
       return next
     })
-  }
+  }, [lockedMode, saving])
 
   function beginEditing() {
     setSelectedIds(new Set(savedIds))
@@ -185,7 +185,7 @@ export default function RosterPage() {
               <p className="text-sm font-semibold uppercase tracking-wide text-brand-blue">Regulation: {MB_ROSTER_ID}</p>
               <h1 className="mt-1 text-2xl font-bold text-slate-950">My M-B Pokémon</h1>
               <p className="mt-2 text-sm text-slate-600">
-                {lockedMode ? 'Review the Pokémon in your saved roster.' : 'Choose every Pokémon you currently own.'}
+                {lockedMode ? 'Your saved roster is locked and ready to use.' : 'Choose every Pokémon you currently own.'}
               </p>
             </div>
             <dl className="grid grid-cols-3 gap-2 text-center text-sm">
@@ -217,7 +217,10 @@ export default function RosterPage() {
           </div>
 
           {!lockedMode && (
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 p-3">
+              <p className="mr-auto text-sm font-bold text-blue-950" aria-live="polite">
+                Selected: {selectedIds.size} of {MB_ROSTER_COUNT}
+              </p>
               <button type="button" onClick={() => setSelectedIds(new Set(allRosterIds))} disabled={saving}
                 className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold outline-none hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-brand-blue disabled:opacity-60">
                 Select All
@@ -237,12 +240,12 @@ export default function RosterPage() {
               ))}
             </div>
           ) : (
-            <p className="mt-8 rounded-lg bg-slate-100 p-6 text-center text-slate-600">
+            <p className="mt-8 rounded-xl border border-dashed border-slate-300 bg-slate-100 p-8 text-center font-medium text-slate-600">
               No Pokémon match your search and filter.
             </p>
           )}
 
-          <div className="mt-7 border-t border-slate-200 pt-5">
+          <div className="mt-7 rounded-xl border border-slate-200 bg-slate-100 p-4">
             {lockedMode ? (
               <div className="flex flex-wrap gap-3">
                 <button type="button" onClick={beginEditing}

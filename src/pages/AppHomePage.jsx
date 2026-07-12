@@ -63,7 +63,7 @@ export default function AppHomePage() {
       </header>
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-red-800" role="alert">{error}</p>}
-        <section className="rounded-2xl bg-slate-50 p-6 shadow-lg sm:p-8">
+        <section className="rounded-2xl bg-slate-50 p-5 shadow-lg sm:p-8">
           <p className="text-sm font-semibold uppercase tracking-wide text-brand-blue">Welcome</p>
           {profileError ? (
             <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
@@ -83,7 +83,12 @@ export default function AppHomePage() {
             </div>
           ) : (
             <>
-              <h1 className="mt-2 text-2xl font-bold text-slate-950">Your account database is ready.</h1>
+              <h1 className="mt-2 text-2xl font-bold text-slate-950">Your team workspace</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {userProfile.rosterLocked && validOwnedCount >= 6
+                  ? 'Your M-B roster and team spinner are ready.'
+                  : 'Set up and lock at least 6 Pokémon to begin generating teams.'}
+              </p>
               <dl className="mt-6 grid gap-3 sm:grid-cols-2">
                 <StatusItem label="Authentication status" value="Signed in" />
                 <StatusItem label="Signed-in email" value={user?.email ?? ''} />
@@ -94,24 +99,19 @@ export default function AppHomePage() {
                 <StatusItem label="Cycle" value={userProfile.spinState?.cycleNumber ?? 1} />
                 <StatusItem label="Total spins" value={userProfile.spinState?.totalSpins ?? 0} />
               </dl>
-              <p className="mt-6 max-w-2xl leading-7 text-slate-600">
-                Authentication is working. Your M-B roster setup will be added next.
-              </p>
-              <Link to="/roster"
-                className="mt-5 inline-flex rounded-lg bg-brand-yellow px-4 py-2.5 font-semibold text-navy-950 outline-none hover:bg-yellow-300 focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2">
-                {userProfile.rosterLocked ? 'View My Roster' : 'Set Up My Roster'}
-              </Link>
-              {userProfile.rosterLocked && validOwnedCount >= 6 ? (
-                <button type="button" onClick={() => navigate('/spinner')}
-                  className="ml-3 mt-5 inline-flex rounded-lg bg-brand-blue px-4 py-2.5 font-semibold text-white outline-none hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-2">
-                  Open Team Spinner
-                </button>
-              ) : (
-                <p className="mt-4 text-sm font-medium text-amber-800">
-                  Set up and lock at least 6 Pokémon to use the team spinner.
-                </p>
-              )}
-              <section className="mt-6 rounded-xl border border-slate-200 bg-slate-100 p-4" aria-labelledby="dataset-heading">
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Link to="/roster"
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-yellow px-4 py-2.5 font-semibold text-navy-950 outline-none hover:bg-yellow-300 focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2">
+                  {userProfile.rosterLocked ? 'View My Roster' : 'Set Up My Roster'}
+                </Link>
+                {userProfile.rosterLocked && validOwnedCount >= 6 && (
+                  <button type="button" onClick={() => navigate('/spinner')}
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-blue px-4 py-2.5 font-semibold text-white outline-none hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-2">
+                    Open Team Spinner
+                  </button>
+                )}
+              </div>
+              {import.meta.env.DEV && <section className="mt-6 rounded-xl border border-slate-200 bg-slate-100 p-4" aria-labelledby="dataset-heading">
                 <h2 id="dataset-heading" className="font-bold text-slate-950">Dataset verification</h2>
                 <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                   <StatusItem label="Regulation" value={MB_ROSTER_ID} />
@@ -120,7 +120,7 @@ export default function AppHomePage() {
                   <StatusItem label="Unique IDs" value={uniqueRosterIds} />
                   <StatusItem label="Unique Pokémon types" value={uniqueRosterTypes} />
                 </dl>
-              </section>
+              </section>}
             </>
           )}
         </section>

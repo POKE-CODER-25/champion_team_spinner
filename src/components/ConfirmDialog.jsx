@@ -2,10 +2,17 @@ import { useEffect, useRef } from 'react'
 
 export default function ConfirmDialog({ open, busy, onConfirm, onCancel }) {
   const confirmButton = useRef(null)
+  const previousFocus = useRef(null)
 
   useEffect(() => {
     if (!open) return undefined
+    previousFocus.current = document.activeElement
     confirmButton.current?.focus()
+    return () => previousFocus.current?.focus?.()
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
     const handleKeyDown = (event) => {
       if (event.key === 'Escape' && !busy) onCancel()
     }

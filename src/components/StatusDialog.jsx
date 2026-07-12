@@ -10,10 +10,17 @@ export default function StatusDialog({
   onClose,
 }) {
   const primaryButton = useRef(null)
+  const previousFocus = useRef(null)
 
   useEffect(() => {
     if (!open) return undefined
+    previousFocus.current = document.activeElement
     primaryButton.current?.focus()
+    return () => previousFocus.current?.focus?.()
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
     const handleKeyDown = (event) => {
       if (event.key === 'Escape' && !busy) onClose()
     }
@@ -26,7 +33,7 @@ export default function StatusDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
       <div role="dialog" aria-modal="true" aria-labelledby="status-dialog-title"
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl sm:p-6">
         <h2 id="status-dialog-title" className="text-xl font-bold text-slate-950">{title}</h2>
         <p className="mt-3 leading-6 text-slate-600">{message}</p>
         <div className="mt-6 flex justify-end gap-3">

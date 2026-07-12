@@ -1,4 +1,4 @@
-import { ArrowLeft, LogOut, RefreshCcw, Trophy } from 'lucide-react'
+import { ArrowLeft, CircleDot, Copy, LoaderCircle, LogOut, RefreshCcw, Trophy } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import StatusDialog from '../components/StatusDialog'
@@ -47,7 +47,7 @@ export default function SpinnerPage() {
   const [spinning, setSpinning] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [showResetDialog, setShowResetDialog] = useState(false)
-  const [rolloverMessage, setRolloverMessage] = useState('')
+  const [rolloverNotice, setRolloverNotice] = useState(null)
   const [statusMessage, setStatusMessage] = useState('')
   const [error, setError] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
@@ -69,7 +69,7 @@ export default function SpinnerPage() {
   const closeResetDialog = useCallback(() => {
     if (!resetting) setShowResetDialog(false)
   }, [resetting])
-  const closeRolloverDialog = useCallback(() => setRolloverMessage(''), [])
+  const closeRolloverDialog = useCallback(() => setRolloverNotice(null), [])
 
   const rosterReady = Boolean(
     userProfile?.rosterLocked &&
@@ -94,7 +94,18 @@ export default function SpinnerPage() {
         cycleNumber: result.cycleNumber,
         totalSpins: result.totalSpins,
       })
-      if (result.rollover) setRolloverMessage(result.rolloverMessage)
+      if (result.rollover) {
+        setRolloverNotice(result.rolloverType === 'partial'
+          ? {
+            title: 'New cycle started',
+            message: `Every Pokémon from the previous cycle has now been used. This team includes the final unused Pokémon and new picks from Cycle ${result.cycleNumber}.`,
+          }
+          : {
+            title: `Cycle ${result.cycleNumber} started`,
+            message: 'You used every Pokémon in the previous cycle. All owned Pokémon are available again.',
+          })
+      }
+      setStatusMessage('Your team is ready.')
       void refreshUserProfile(user)
     } catch (spinError) {
       console.error('Unable to generate a random team.', {
@@ -150,6 +161,52 @@ export default function SpinnerPage() {
       setLoggingOut(false)
     }
   }
+
+  async function handleCopyTeam() {
+    setError('')
+    setStatusMessage('')
+    try {
+      await navigator.clipboard.writeText(currentTeam.map(({ name }) => name).join(', '))
+      setStatusMessage('Team names copied.')
+    } catch (copyError) {
+      if (import.meta.env.DEV) console.warn('Unable to copy team names.', copyError)
+      setError('We could not copy the team names.')
+    }
+  }
+
+  useEffect(() => {
+    if (!statusMessage) return undefined
+    const timeout = window.setTimeout(() => setStatusMessage(''), 4000)
+    return () => window.clearTimeout(timeout)
+  }, [statusMessage])
+
+  const spinShortcutRef = useRef(handleSpin)
+  spinShortcutRef.current = handleSpin
+
+  useEffect(() => {
+    const handleShortcut = (event) => {
+      const target = event.target
+      const isTyping = target instanceof HTMLElement &&
+        (target.matches('input, textarea, select') || target.isContentEditable)
+      if (
+        event.key.toLowerCase() !== 's' ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        isTyping ||
+        spinning ||
+        resetting ||
+        showResetDialog ||
+        rolloverNotice ||
+        !rosterReady ||
+        window.location.pathname !== '/spinner'
+      ) return
+      event.preventDefault()
+      void spinShortcutRef.current()
+    }
+    window.addEventListener('keydown', handleShortcut)
+    return () => window.removeEventListener('keydown', handleShortcut)
+  }, [spinning, resetting, showResetDialog, rolloverNotice, rosterReady])
 
   if (profileLoading && !userProfile) return <SpinnerStatus message="Loading your team spinner..." />
 
@@ -209,9 +266,12 @@ export default function SpinnerPage() {
 
         <section className="mt-5 rounded-2xl bg-slate-50 p-5 shadow-lg sm:p-7">
           <p className="text-sm font-semibold uppercase tracking-wide text-brand-blue">Regulation: {MB_ROSTER_ID}</p>
-          <h1 className="mt-1 text-3xl font-bold text-slate-950">Champion Team Spinner</h1>
+          <h1 className="mt-1 text-2xl font-bold text-slate-950 sm:text-3xl">Champion Team Spinner</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Generate six unique Pokémon without repeats until your entire owned roster has been used.
+          </p>
 
-          <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <dl className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
             <SpinnerMetric label="Owned" value={ownedPokemonIds.length} />
             <SpinnerMetric label="Used this cycle" value={spinView.usedCount} />
             <SpinnerMetric label="Remaining this cycle" value={spinView.remainingCount} />
@@ -222,42 +282,61 @@ export default function SpinnerPage() {
           {error && <Notice tone="error">{error}</Notice>}
           {statusMessage && <Notice tone="success">{statusMessage}</Notice>}
 
-          <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6" aria-live="polite">
+          <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6" aria-live="polite" aria-busy={spinning}>
             {currentTeam.length === 6
               ? currentTeam.map((pokemon, index) => (
                 <TeamPokemonCard key={pokemon.id} pokemon={pokemon} position={index + 1} />
               ))
               : Array.from({ length: 6 }, (_, index) => (
                 <div key={index}
-                  className="flex aspect-[3/4] items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-4 text-center text-sm font-medium text-slate-500">
-                  <span>Position {index + 1}<br />No team generated</span>
+                  className="flex min-h-48 flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-4 text-center text-sm font-medium text-slate-500">
+                  <span className="text-xs font-bold uppercase tracking-wide">Slot {index + 1}</span>
+                  <CircleDot className="my-4 size-10 text-slate-300" aria-hidden="true" />
+                  <span>No Pokémon yet</span>
                 </div>
               ))}
           </div>
 
-          <div className="mt-7 flex flex-wrap gap-3 border-t border-slate-200 pt-5">
-            <button type="button" onClick={handleSpin} disabled={spinning || resetting}
-              className="rounded-lg bg-brand-yellow px-5 py-2.5 font-semibold text-navy-950 outline-none hover:bg-yellow-300 focus-visible:ring-2 focus-visible:ring-brand-blue disabled:cursor-not-allowed disabled:opacity-60">
-              {spinning ? 'Building your team...' : currentTeam.length === 6 ? 'Spin Again' : 'Spin Random Team'}
-            </button>
-            <Link to="/roster"
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800 outline-none hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-brand-blue">
-              Edit My Roster
-            </Link>
-            <button type="button" onClick={() => setShowResetDialog(true)} disabled={spinning || resetting}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800 outline-none hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-brand-blue disabled:opacity-60">
-              <RefreshCcw className="size-4" aria-hidden="true" />
-              Reset Spin Cycle
-            </button>
+          <div className="mt-7 border-t border-slate-200 pt-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={handleSpin} disabled={spinning || resetting}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-yellow px-5 py-2.5 font-semibold text-navy-950 outline-none hover:bg-yellow-300 focus-visible:ring-2 focus-visible:ring-brand-blue disabled:cursor-not-allowed disabled:opacity-60">
+                {spinning && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
+                {spinning ? 'Building your team...' : currentTeam.length === 6 ? 'Spin Again' : 'Spin Random Team'}
+              </button>
+              {currentTeam.length === 6 && (
+                <button type="button" onClick={handleCopyTeam} disabled={spinning || resetting}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800 outline-none hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-brand-blue disabled:opacity-60">
+                  <Copy className="size-4" aria-hidden="true" />
+                  Copy Team Names
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">Tip: press S to spin</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link to="/roster"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800 outline-none hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-brand-blue">
+                Edit My Roster
+              </Link>
+              <button type="button" onClick={() => setShowResetDialog(true)} disabled={spinning || resetting}
+                className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900 outline-none hover:bg-amber-100 focus-visible:ring-2 focus-visible:ring-brand-blue disabled:opacity-60">
+                <RefreshCcw className="size-4" aria-hidden="true" />
+                Reset Spin Cycle
+              </button>
+              <Link to="/app"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800 outline-none hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-brand-blue">
+                Back to Account
+              </Link>
+            </div>
           </div>
         </section>
       </main>
 
-      <StatusDialog open={showResetDialog} title="Reset current cycle?"
-        message="This will allow every owned Pokémon to be selected again. Your owned roster will not change."
-        actionLabel="Reset Cycle" busy={resetting} onAction={handleReset} onClose={closeResetDialog} />
-      <StatusDialog open={Boolean(rolloverMessage)} title="A new cycle has started"
-        message={rolloverMessage} actionLabel="Continue" onClose={closeRolloverDialog} />
+      <StatusDialog open={showResetDialog} title="Reset spin progress?"
+        message="This will clear the current team and allow every owned Pokémon to be selected again. Your saved roster will not change."
+        actionLabel="Reset Progress" busy={resetting} onAction={handleReset} onClose={closeResetDialog} />
+      <StatusDialog open={Boolean(rolloverNotice)} title={rolloverNotice?.title}
+        message={rolloverNotice?.message} actionLabel="Continue" onClose={closeRolloverDialog} />
     </div>
   )
 }
@@ -275,7 +354,7 @@ function Notice({ tone, children }) {
   const classes = tone === 'success'
     ? 'border-green-200 bg-green-50 text-green-800'
     : 'border-red-200 bg-red-50 text-red-800'
-  return <p className={`mt-5 rounded-lg border p-3 text-sm ${classes}`} role={tone === 'error' ? 'alert' : 'status'}>{children}</p>
+  return <p className={`mt-5 rounded-lg border p-3 text-sm ${classes}`} role={tone === 'error' ? 'alert' : 'status'} aria-live="polite">{children}</p>
 }
 
 function SpinnerStatus({ message, children }) {
