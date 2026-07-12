@@ -1,7 +1,17 @@
 import { LogOut, Trophy } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../context/useAuth'
+import { MB_ROSTER, MB_ROSTER_COUNT, MB_ROSTER_ID } from '../data/mbRoster'
 import { getAuthErrorMessage } from '../utils/authErrors'
+import { validateRosterDataset } from '../utils/validateRoster'
+
+const rosterValidation = validateRosterDataset(MB_ROSTER)
+const uniqueRosterIds = new Set(MB_ROSTER.map(({ id }) => id)).size
+const uniqueRosterTypes = new Set(MB_ROSTER.flatMap(({ types }) => types)).size
+
+if (import.meta.env.DEV && !rosterValidation.valid) {
+  console.error('Regulation M-B roster validation failed.', rosterValidation.errors)
+}
 
 export default function AppHomePage() {
   const {
@@ -81,6 +91,16 @@ export default function AppHomePage() {
               <p className="mt-6 max-w-2xl leading-7 text-slate-600">
                 Authentication is working. Your M-B roster setup will be added next.
               </p>
+              <section className="mt-6 rounded-xl border border-slate-200 bg-slate-100 p-4" aria-labelledby="dataset-heading">
+                <h2 id="dataset-heading" className="font-bold text-slate-950">Dataset verification</h2>
+                <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                  <StatusItem label="Regulation" value={MB_ROSTER_ID} />
+                  <StatusItem label="Dataset status" value={rosterValidation.valid ? 'Valid' : 'Invalid'} />
+                  <StatusItem label="Total roster entries" value={MB_ROSTER_COUNT} />
+                  <StatusItem label="Unique IDs" value={uniqueRosterIds} />
+                  <StatusItem label="Unique Pokémon types" value={uniqueRosterTypes} />
+                </dl>
+              </section>
             </>
           )}
         </section>
