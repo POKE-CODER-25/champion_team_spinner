@@ -4,6 +4,7 @@ import PublicOnlyRoute from './components/PublicOnlyRoute'
 import AppHomePage from './pages/AppHomePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import RosterPage from './pages/RosterPage'
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AppHomePage />} />
+        <Route path="/roster" element={<RosterPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>

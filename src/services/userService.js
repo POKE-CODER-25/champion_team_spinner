@@ -1,7 +1,10 @@
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
+import { MB_ROSTER, MB_ROSTER_ID } from '../data/mbRoster'
 
 const pendingInitializations = new Map()
+const pendingRosterSaves = new Map()
+const validRosterIds = new Set(MB_ROSTER.map(({ id }) => id))
 
 function requireUid(uid) {
   if (typeof uid !== 'string' || !uid.trim()) {
@@ -63,4 +66,62 @@ export async function getUserDocument(uid) {
   const userReference = doc(db, 'users', requireUid(uid))
   const userSnapshot = await getDoc(userReference)
   return userSnapshot.exists() ? userSnapshot.data() : null
+}
+
+export function validateOwnedPokemonRoster(pokemonIds) {
+  if (!Array.isArray(pokemonIds)) {
+    throw new Error('Pokémon IDs must be provided as an array.')
+  }
+
+  const requestedIds = new Set(pokemonIds)
+  const unknownIds = [...requestedIds].filter((id) => !validRosterIds.has(id))
+  if (unknownIds.length > 0) {
+    throw new Error('The roster contains unknown Pokémon IDs.')
+  }
+
+  const selectedPokemonIds = MB_ROSTER
+    .filter(({ id }) => requestedIds.has(id))
+    .map(({ id }) => id)
+
+  if (selectedPokemonIds.length < 6) {
+    throw new Error('A roster must contain at least six Pokémon.')
+  }
+
+  return selectedPokemonIds
+}
+
+export function saveOwnedPokemonRoster(uid, pokemonIds) {
+  const validatedUid = requireUid(uid)
+  let selectedPokemonIds
+  try {
+    selectedPokemonIds = validateOwnedPokemonRoster(pokemonIds)
+  } catch (error) {
+    return Promise.reject(error)
+  }
+
+  const existingRequest = pendingRosterSaves.get(validatedUid)
+  if (existingRequest) return existingRequest
+
+  const request = updateDoc(doc(db, 'users', validatedUid), {
+    ownedPokemonIds: selectedPokemonIds,
+    rosterLocked: true,
+    regulationId: MB_ROSTER_ID,
+    spinState: {
+      unusedPokemonIds: selectedPokemonIds,
+      usedPokemonIds: [],
+      currentTeamIds: [],
+      cycleNumber: 1,
+      totalSpins: 0,
+      lastSpinAt: null,
+    },
+    updatedAt: serverTimestamp(),
+  }).then(() => selectedPokemonIds)
+    .finally(() => {
+      if (pendingRosterSaves.get(validatedUid) === request) {
+        pendingRosterSaves.delete(validatedUid)
+      }
+    })
+
+  pendingRosterSaves.set(validatedUid, request)
+  return request
 }
